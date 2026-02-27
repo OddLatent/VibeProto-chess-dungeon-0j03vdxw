@@ -1,0 +1,1783 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Chess Dungeon</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #0a0a14;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            user-select: none;
+        }
+        #game-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+        }
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .hud-top {
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .coins-container {
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px 20px;
+            border-radius: 30px;
+            border: 2px solid #ffd700;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            box-shadow: 0 4px 15px rgba(255, 215, 0, 0.2);
+            backdrop-filter: blur(5px);
+            transition: transform 0.1s;
+        }
+        .coin-icon {
+            width: 30px;
+            height: 30px;
+            background: radial-gradient(circle at 30% 30%, #fffbd0, #ffd700, #b8860b);
+            border-radius: 50%;
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+            border: 2px solid #b8860b;
+        }
+        .coins-text {
+            color: #ffd700;
+            font-size: 28px;
+            font-weight: 800;
+            text-shadow: 2px 2px 4px #000;
+        }
+        .level-text {
+            color: #fff;
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px #000;
+            background: rgba(0,0,0,0.5);
+            padding: 10px 20px;
+            border-radius: 10px;
+        }
+        .instructions {
+            color: rgba(255,255,255,0.8);
+            text-align: center;
+            padding: 20px;
+            font-size: 18px;
+            text-shadow: 1px 1px 2px #000;
+            background: rgba(0,0,0,0.4);
+            border-radius: 10px;
+            margin: 0 auto 20px auto;
+            max-width: 600px;
+        }
+        #upgrade-modal, #game-over-modal {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            padding: 40px;
+            border-radius: 15px;
+            border: 3px solid #ffd700;
+            pointer-events: auto;
+            text-align: center;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+            z-index: 100;
+        }
+        #upgrade-modal h2 {
+            color: #fff;
+            margin-top: 0;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        .upgrade-options {
+            display: flex;
+            gap: 20px;
+            margin-top: 30px;
+            justify-content: center;
+        }
+        .btn {
+            background: #0f3460;
+            color: white;
+            border: 2px solid #4361ee;
+            padding: 15px 30px;
+            font-size: 20px;
+            font-weight: bold;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+        }
+        .btn:hover {
+            background: #4361ee;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(67, 97, 238, 0.4);
+        }
+        .btn.gold {
+            border-color: #ffd700;
+            background: #b8860b;
+        }
+        .btn.gold:hover {
+            background: #ffd700;
+            color: black;
+            box-shadow: 0 5px 15px rgba(255, 215, 0, 0.4);
+        }
+        #messages {
+            position: absolute;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            font-size: 26px;
+            font-weight: bold;
+            background: rgba(0,0,0,0.8);
+            border: 2px solid rgba(255,255,255,0.2);
+            padding: 12px 35px;
+            border-radius: 20px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container"></div>
+
+<div id="ui-layer">
+    <div class="hud-top">
+        <div class="coins-container" id="coins-container">
+            <div class="coin-icon"></div>
+            <div class="coins-text" id="coins-display">0</div>
+        </div>
+        <div class="level-text" id="level-display">Dungeon Floor 1</div>
+    </div>
+    
+    <div id="messages">Player Turn</div>
+
+    <div class="instructions">
+        Red tiles are Danger Zones | Click Tombstones to Revive Pawns (50 Coins)
+    </div>
+    
+    <!-- UI Controls -->
+    <button id="rotate-cam-btn" class="btn" style="position: absolute; bottom: 30px; left: 30px; pointer-events: auto; padding: 10px 20px; font-size: 16px;">⟳ Rotate View</button>
+</div>
+
+<div id="upgrade-modal">
+    <h2>Piece Evolved!</h2>
+    <p style="color: #ccc; margin-bottom: 20px;">Choose a new form for your capturing piece.</p>
+    <div class="upgrade-options" id="upgrade-btns-container">
+        <!-- Buttons injected by JS -->
+    </div>
+</div>
+
+<div id="game-over-modal">
+    <h2 id="end-title" style="color: #ffd700; font-size: 36px;">VICTORY</h2>
+    <p id="end-desc" style="color: #fff; font-size: 18px;">You have conquered the Chess Dungeon!</p>
+    <button class="btn gold" id="next-level-btn" style="margin-top: 20px; display: none;" onclick="openShop()">Visit Campfire</button>
+    <button class="btn gold" id="restart-btn" style="margin-top: 20px;" onclick="location.reload()">Play Again</button>
+</div>
+
+<!-- Shop Modal -->
+<div id="shop-modal" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: linear-gradient(135deg, #1a1a2e 0%, #2a0845 100%); padding: 40px; border-radius: 15px; border: 3px solid #ffd700; pointer-events: auto; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.8); z-index: 100; min-width: 350px;">
+    <h2 style="color: #ffd700; margin-top: 0;">Campfire Shrine</h2>
+    <p style="color: #ccc; margin-bottom: 20px;">Promote your Pawns here.<br><span style="font-size: 14px; color: #aaa;">(Resurrect fallen Pawns by clicking their Tombstones in battle)</span></p>
+    
+    <div style="display: flex; flex-direction: column; gap: 15px; margin-bottom: 30px;" id="shop-items-container">
+        <button id="buy-knight-btn" class="btn" onclick="buyUpgrade('N', 100)" style="display: flex; justify-content: space-between; align-items: center;">
+            <span>Promote Pawn ➔ Knight</span>
+            <span style="color: #ffd700;">💰 100</span>
+        </button>
+        <button id="buy-bishop-btn" class="btn" onclick="buyUpgrade('B', 100)" style="display: flex; justify-content: space-between; align-items: center;">
+            <span>Promote Pawn ➔ Bishop</span>
+            <span style="color: #ffd700;">💰 100</span>
+        </button>
+    </div>
+    
+    <button class="btn gold" onclick="nextLevel()">Descend to Next Floor</button>
+</div>
+
+<!-- Dependencies -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
+
+<script>
+    /**
+     * CHESS DUNGEON - CLASSIC CHESS TURNS (1 Move per Turn)
+     */
+
+    // --- GLOBALS & CONFIG ---
+    let scene, camera, renderer, controls, world;
+    let coinsCount = 0;
+    
+    // Level tracking
+    let currentLevelIndex = 0;
+    let rawMap = [];
+    let mapWidth = 0;
+    let mapHeight = 0;
+    let levelMeshes = []; 
+    let levelBodies = []; 
+    let trapTiles = []; 
+    let tombstones = []; 
+    let hitStopTimer = 0;
+    let turnCount = 0; 
+
+    // Squad tracking
+    let persistentSquad = []; 
+
+    const levels = [
+        {
+            name: "Dungeon Floor 1",
+            map: [
+                "####################",
+                "########;;;;;;;;####",
+                "########;;_;;;;;####",
+                "########;;;;_;;;####",
+                "########;;;;;;;;####",
+                "########;;;;;;;;####",
+                "###########+########",
+                "####,,,,,,,+########",
+                "####,,,,,,,#########",
+                "####,,,,_,,#########",
+                "####,,^^^,,#########",
+                "####,,,#############",
+                "####,,,+############",
+                "####...+############",
+                "####...#############",
+                "####...#############",
+                "####...#############",
+                "####################"
+            ],
+            pieces: [
+                {t:'P', s:'black', x:4, z:13}, {t:'P', s:'black', x:6, z:13}, 
+                {t:'P', s:'black', x:5, z:10}, {t:'P', s:'black', x:9, z:10}, {t:'B', s:'black', x:6, z:8},
+                {t:'R', s:'black', x:10, z:4}, {t:'R', s:'black', x:14, z:4}, {t:'Q', s:'black', x:12, z:2}
+            ]
+        },
+        {
+            name: "Dungeon Floor 2",
+            map: [
+                "####################",
+                "####;;;;;;;;########",
+                "####;__;;__;########",
+                "####;;;;;;;;########",
+                "####;;;^^;;;########",
+                "####,,,+############",
+                "####,_,#############",
+                "####,_,#############",
+                "####...+############",
+                "####...#############",
+                "####################"
+            ],
+            pieces: [
+                {t:'P', s:'black', x:5, z:8},
+                {t:'N', s:'black', x:4, z:6}, {t:'N', s:'black', x:6, z:6},
+                {t:'B', s:'black', x:4, z:3}, {t:'B', s:'black', x:10, z:3}, {t:'Q', s:'black', x:7, z:1}
+            ]
+        },
+        {
+            name: "Dungeon Floor 3 - Ambush",
+            map: [
+                "####################",
+                "#######,,,,,,#######",
+                "#######,____,#######",
+                "#######,,,,,,#######",
+                "#######,^^^^,#######",
+                "#######,,,,,,#######",
+                "#######,,,+,,#######",
+                "#######.......######",
+                "#######.......######",
+                "####################"
+            ],
+            pieces: [
+                {t:'N', s:'black', x:10, z:5},
+                {t:'Q', s:'black', x:10, z:1}, {t:'R', s:'black', x:8, z:1}, {t:'R', s:'black', x:12, z:1},
+                {t:'B', s:'black', x:7, z:3}, {t:'B', s:'black', x:12, z:3}, {t:'N', s:'black', x:10, z:3}
+            ]
+        },
+        {
+            name: "Dungeon Floor 4 - The Gauntlet",
+            map: [
+                "####################",
+                "#####:::::::########",
+                "#####:__#__:########",
+                "#####:::::::########",
+                "########+###########",
+                "########;;;;;;######",
+                "########;#_#_;######",
+                "########;;;;;;######",
+                "########+###########",
+                "#####,,,,,,,########",
+                "#####,^^^,,,########",
+                "#####,,,,,,,########",
+                "#####,,,+###########",
+                "#####.......########",
+                "#####.......########",
+                "####################"
+            ],
+            pieces: [
+                {t:'P', s:'black', x:5, z:11}, {t:'N', s:'black', x:9, z:11},
+                {t:'B', s:'black', x:8, z:7}, {t:'R', s:'black', x:13, z:7},
+                {t:'Q', s:'black', x:8, z:1}, {t:'N', s:'black', x:5, z:3}
+            ]
+        },
+        {
+            name: "Dungeon Floor 5 - The Chasm",
+            map: [
+                "####################",
+                "#######:::::::######",
+                "#######:::::::######",
+                "#######:::+:::######",
+                "##########;#########",
+                "##########;#########",
+                "#####_____;_____####",
+                "#####_____;_____####",
+                "##########+#########",
+                "#######,,,,,,,######",
+                "#######.......######",
+                "#######.......######",
+                "####################"
+            ],
+            pieces: [
+                {t:'P', s:'black', x:7, z:9}, {t:'P', s:'black', x:13, z:9},
+                {t:'R', s:'black', x:10, z:5},
+                {t:'R', s:'black', x:7, z:1}, {t:'R', s:'black', x:13, z:1},
+                {t:'B', s:'black', x:8, z:2}, {t:'B', s:'black', x:12, z:2},
+                {t:'N', s:'black', x:10, z:2}
+            ]
+        },
+        {
+            name: "Dungeon Floor 6 - True Boss",
+            map: [
+                "####################",
+                "######::::::::######",
+                "######::::::::######",
+                "######::::::::######",
+                "######::::::::######",
+                "######::::+:::######",
+                "##########;#########",
+                "#####,,,,,;,,,######",
+                "#####,^^,,;,,_######",
+                "#####,,,,,+,,_######",
+                "#######.......######",
+                "#######.......######",
+                "####################"
+            ],
+            pieces: [
+                {t:'N', s:'black', x:6, z:7}, {t:'P', s:'black', x:12, z:7},
+                {t:'R', s:'black', x:10, z:6},
+                {t:'Q', s:'black', x:10, z:1}, {t:'R', s:'black', x:6, z:1}, {t:'R', s:'black', x:13, z:1},
+                {t:'B', s:'black', x:7, z:2}, {t:'B', s:'black', x:12, z:2},
+                {t:'N', s:'black', x:8, z:3}, {t:'N', s:'black', x:11, z:3}
+            ]
+        }
+    ];
+
+    const TILE_SIZE = 2;
+    
+    let grid = []; 
+    let pieces = []; 
+    let physicsObjects = []; 
+    
+    const colors = {
+        white: 0xeeeeee,
+        black: 0xaa2222, // Crimson Red enemies for maximum visibility!
+        highlight: 0x00ff00,
+        enemyHighlight: 0xffaa00,
+        telegraph: 0xff0000 
+    };
+
+    let activeRooms = new Set(['.']); 
+    let roomMeshes = {}; 
+    
+    let state = 'PLAYER_TURN'; 
+    let selectedPiece = null;
+    let validMoves = []; 
+    let highlightMeshes = [];
+    let telegraphMeshes = [];
+    let pendingUpgradePiece = null;
+
+    const telegraphMat = new THREE.MeshBasicMaterial({ color: colors.telegraph, transparent: true, opacity: 0.5 });
+    const activeRingMat = new THREE.MeshBasicMaterial({ color: 0x00ff00, transparent: true, opacity: 0.6, side: THREE.DoubleSide });
+
+    const TYPES = {
+        'P': { name: 'Pawn', val: 1 },
+        'N': { name: 'Knight', val: 3 },
+        'B': { name: 'Bishop', val: 3 },
+        'R': { name: 'Rook', val: 5 },
+        'Q': { name: 'Queen', val: 9 }
+    };
+
+    // --- INITIALIZATION ---
+    function init() {
+        const container = document.getElementById('game-container');
+        scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x0a0a14, 0.015);
+
+        const width = window.innerWidth || 800;
+        const height = window.innerHeight || 600;
+        const aspect = width / height;
+        const d = 18;
+        camera = new THREE.OrthographicCamera(-d * aspect, d * aspect, d, -d, 1, 1000);
+        camera.position.set(20, 25, 20); 
+        camera.lookAt(0, 0, 0);
+
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(width, height);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        container.appendChild(renderer.domElement);
+
+        controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableRotate = false; 
+        controls.enablePan = true;
+        controls.enableZoom = true;
+        controls.target.set(10, 0, 25); 
+        controls.update();
+
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+        scene.add(ambientLight);
+
+        const dirLight = new THREE.DirectionalLight(0xfff0dd, 0.8);
+        dirLight.position.set(20, 40, 10);
+        dirLight.castShadow = true;
+        dirLight.shadow.camera.left = -30;
+        dirLight.shadow.camera.right = 30;
+        dirLight.shadow.camera.top = 30;
+        dirLight.shadow.camera.bottom = -30;
+        dirLight.shadow.mapSize.width = 2048;
+        dirLight.shadow.mapSize.height = 2048;
+        scene.add(dirLight);
+
+        const pLight1 = new THREE.PointLight(0x4361ee, 1, 40);
+        pLight1.position.set(10, 5, 25);
+        scene.add(pLight1);
+        
+        const pLight2 = new THREE.PointLight(0xe74c3c, 1, 50);
+        pLight2.position.set(20, 5, 5);
+        scene.add(pLight2);
+
+        world = new CANNON.World();
+        world.gravity.set(0, -40, 0); 
+        world.broadphase = new CANNON.NaiveBroadphase();
+        world.solver.iterations = 10;
+
+        const groundShape = new CANNON.Plane();
+        const groundBody = new CANNON.Body({ mass: 0, material: new CANNON.Material({ restitution: 0.5 }) });
+        groundBody.addShape(groundShape);
+        groundBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
+        world.addBody(groundBody);
+
+        new TWEEN.Tween(telegraphMat)
+            .to({ opacity: 0.15 }, 800)
+            .easing(TWEEN.Easing.Sinusoidal.InOut)
+            .yoyo(true).repeat(Infinity)
+            .start();
+
+        loadLevel(0);
+
+        window.addEventListener('resize', onWindowResize, false);
+        window.addEventListener('pointerdown', onPointerDown, false);
+        window.addEventListener('pointerup', onPointerUp, false);
+
+        document.getElementById('rotate-cam-btn').addEventListener('click', rotateCamera);
+
+        requestAnimationFrame(animate);
+    }
+
+    function rotateCamera() {
+        const target = controls.target;
+        const radius = Math.hypot(camera.position.x - target.x, camera.position.z - target.z);
+        const currentAngle = Math.atan2(camera.position.z - target.z, camera.position.x - target.x);
+        
+        const newAngle = currentAngle + Math.PI / 2;
+        
+        const newX = target.x + radius * Math.cos(newAngle);
+        const newZ = target.z + radius * Math.sin(newAngle);
+
+        new TWEEN.Tween(camera.position)
+            .to({ x: newX, z: newZ }, 600)
+            .easing(TWEEN.Easing.Cubic.InOut)
+            .start();
+    }
+
+    function clearLevel() {
+        levelMeshes.forEach(m => scene.remove(m));
+        levelMeshes = [];
+        
+        levelBodies.forEach(b => world.removeBody(b));
+        levelBodies = [];
+        
+        trapTiles = [];
+        turnCount = 0;
+        hitStopTimer = 0;
+
+        // Save surviving white pieces
+        if (state !== 'GAME_OVER') {
+            const survivors = pieces.filter(p => p.side === 'white').map(p => p.type);
+            if (survivors.length > 0) persistentSquad = survivors;
+        }
+
+        pieces.forEach(p => scene.remove(p.mesh));
+        pieces = [];
+
+        physicsObjects.forEach(obj => {
+            scene.remove(obj.mesh);
+            world.removeBody(obj.body);
+        });
+        physicsObjects = [];
+
+        tombstones.forEach(ts => scene.remove(ts.group));
+        tombstones = [];
+
+        clearHighlights();
+        clearTelegraphs();
+        
+        activeRooms = new Set(['.']); 
+        roomMeshes = {};
+        grid = [];
+    }
+
+    function loadLevel(index) {
+        clearLevel();
+        currentLevelIndex = index;
+        const levelData = levels[index];
+        
+        rawMap = levelData.map;
+        mapWidth = rawMap[0].length;
+        mapHeight = rawMap.length;
+        
+        document.getElementById('level-display').innerText = levelData.name;
+        state = 'PLAYER_TURN';
+
+        buildLevel();
+        setupPieces(levelData.pieces);
+        
+        // Force reveal immediately around spawned player pieces
+        pieces.filter(p => p.side === 'white').forEach(p => {
+            checkRoomReveal(p.x, p.z, null);
+        });
+
+        const firstWhite = pieces.find(p => p.side === 'white');
+        if (firstWhite) {
+            const targetX = firstWhite.x * TILE_SIZE;
+            const targetZ = firstWhite.z * TILE_SIZE;
+            controls.target.set(targetX, 0, targetZ);
+            camera.position.set(targetX + 20, 25, targetZ + 20);
+        }
+
+        startPlayerTurn();
+    }
+
+    // --- LEVEL BUILDING ---
+    function buildLevel() {
+        const floorGeo = new THREE.BoxGeometry(TILE_SIZE, 0.4, TILE_SIZE);
+        const wallGeo = new THREE.BoxGeometry(TILE_SIZE, TILE_SIZE * 0.6, TILE_SIZE);
+        
+        const matWhite = new THREE.MeshStandardMaterial({ color: 0xcccccc, roughness: 0.2 });
+        const matBlack = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.2 });
+        const matWall = new THREE.MeshStandardMaterial({ color: 0x2c3e50, roughness: 0.8, bumpScale: 0.05 });
+        const matTrap = new THREE.MeshStandardMaterial({ color: 0x5c1111, roughness: 0.6 }); 
+
+        const wallPhysMat = new CANNON.Material({ restitution: 0.4 });
+
+        for (let z = 0; z < mapHeight; z++) {
+            grid[z] = [];
+            for (let x = 0; x < mapWidth; x++) {
+                const char = rawMap[z][x];
+                
+                const wx = x * TILE_SIZE;
+                const wz = z * TILE_SIZE;
+
+                const tile = { x, z, type: 'void', room: char };
+                grid[z][x] = tile;
+
+                if (char === '#') {
+                    tile.type = 'wall';
+                    const wallMesh = new THREE.Mesh(wallGeo, matWall);
+                    wallMesh.position.set(wx, TILE_SIZE * 0.3, wz);
+                    wallMesh.castShadow = true;
+                    wallMesh.receiveShadow = true;
+                    wallMesh.userData.isWall = true; 
+                    scene.add(wallMesh);
+                    levelMeshes.push(wallMesh);
+                    
+                    const wallShape = new CANNON.Box(new CANNON.Vec3(TILE_SIZE/2, TILE_SIZE, TILE_SIZE/2));
+                    const wallBody = new CANNON.Body({ mass: 0, material: wallPhysMat });
+                    wallBody.addShape(wallShape);
+                    wallBody.position.set(wx, TILE_SIZE, wz);
+                    world.addBody(wallBody);
+                    levelBodies.push(wallBody);
+
+                } else if (char === '_') {
+                    tile.type = 'pit';
+
+                } else if (char !== ' ') {
+                    tile.type = 'floor';
+                    const isTrap = char === '^';
+                    const isWhite = (x + z) % 2 === 0;
+                    
+                    const floorMesh = new THREE.Mesh(floorGeo, isTrap ? matTrap : (isWhite ? matWhite : matBlack));
+                    floorMesh.position.set(wx, 0, wz);
+                    floorMesh.receiveShadow = true;
+                    scene.add(floorMesh);
+                    levelMeshes.push(floorMesh);
+
+                    if (isTrap) {
+                        const spikesGroup = new THREE.Group();
+                        const spikeGeo = new THREE.ConeGeometry(0.15, 0.6, 4);
+                        const spikeMat = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.8 });
+                        
+                        for(let i=0; i<4; i++) {
+                            const spike = new THREE.Mesh(spikeGeo, spikeMat);
+                            spike.position.set((i%2 === 0 ? 0.4 : -0.4), 0, (i < 2 ? 0.4 : -0.4));
+                            spikesGroup.add(spike);
+                        }
+                        spikesGroup.position.set(wx, -0.5, wz);
+                        scene.add(spikesGroup);
+                        levelMeshes.push(spikesGroup);
+                        
+                        trapTiles.push({ x, z, spikesGroup, char });
+                    }
+
+                    const roomKey = isTrap ? '^' : char; 
+                    if (!roomMeshes[char]) roomMeshes[char] = [];
+                    roomMeshes[char].push(floorMesh);
+                    if (isTrap) {
+                        const trapObj = trapTiles.find(t => t.x===x && t.z===z);
+                        if(trapObj) roomMeshes[char].push(trapObj.spikesGroup);
+                    }
+                    
+                    if (!activeRooms.has(char)) {
+                        floorMesh.visible = false;
+                        if(isTrap) trapTiles.find(t => t.x===x && t.z===z).spikesGroup.visible = false;
+                        if (char === '+') floorMesh.visible = true;
+                    }
+                }
+            }
+        }
+    }
+
+    function setupPieces(pieceData) {
+        // Spawn Enemies 
+        pieceData.filter(p => p.s === 'black').forEach(p => addPiece(p.t, p.s, p.x, p.z));
+
+        // Spawn Player Squad
+        let squadToSpawn = persistentSquad.length > 0 ? persistentSquad : pieceData.filter(p => p.s === 'white').map(p => p.t);
+        if (!squadToSpawn || squadToSpawn.length === 0) squadToSpawn = ['B', 'N', 'N'];
+        
+        const spawnPoints = [];
+        for (let z = mapHeight - 1; z >= 0; z--) {
+            for (let x = 0; x < mapWidth; x++) {
+                // Ensure player doesn't spawn directly on top of an enemy
+                if (isWalkable(x, z, false) && !getPieceAt(x, z) && activeRooms.has(rawMap[z][x])) {
+                    spawnPoints.push({x, z});
+                }
+            }
+            if (spawnPoints.length >= squadToSpawn.length + 5) break; 
+        }
+        
+        const centerX = mapWidth / 2;
+        spawnPoints.sort((a, b) => Math.abs(a.x - centerX) - Math.abs(b.x - centerX));
+
+        squadToSpawn.forEach((type, index) => {
+            if (index < spawnPoints.length) {
+                addPiece(type, 'white', spawnPoints[index].x, spawnPoints[index].z);
+            } else {
+                // Emergency Fallback: Find ANY free floor tile
+                let placed = false;
+                for (let z = mapHeight - 1; z >= 0; z--) {
+                    for (let x = 0; x < mapWidth; x++) {
+                        if (isWalkable(x, z, false) && !getPieceAt(x, z)) {
+                            addPiece(type, 'white', x, z);
+                            placed = true;
+                            break;
+                        }
+                    }
+                    if (placed) break;
+                }
+            }
+        });
+    }
+
+    // --- PROCEDURAL 3D PIECES ---
+    function createPieceMesh(type, side) {
+        const group = new THREE.Group();
+        const color = side === 'white' ? colors.white : colors.black;
+        const mat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.2, metalness: 0.1 });
+
+        const addShape = (geo, yPos) => {
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.y = yPos;
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            group.add(mesh);
+            return mesh;
+        };
+
+        addShape(new THREE.CylinderGeometry(0.8, 0.9, 0.4, 16), 0.2);
+        addShape(new THREE.CylinderGeometry(0.6, 0.8, 0.4, 16), 0.6);
+
+        if (type === 'P') {
+            addShape(new THREE.CylinderGeometry(0.3, 0.5, 1.2, 16), 1.4);
+            addShape(new THREE.SphereGeometry(0.5, 16, 16), 2.3);
+        } else if (type === 'N') {
+            addShape(new THREE.CylinderGeometry(0.4, 0.6, 1.0, 16), 1.3);
+            const head = addShape(new THREE.BoxGeometry(0.6, 1.0, 1.2), 2.2);
+            head.rotation.x = 0.3;
+            head.position.z += 0.2;
+        } else if (type === 'B') {
+            addShape(new THREE.CylinderGeometry(0.3, 0.5, 1.5, 16), 1.5);
+            addShape(new THREE.ConeGeometry(0.5, 1.0, 16), 2.7);
+            addShape(new THREE.SphereGeometry(0.15, 8, 8), 3.3);
+        } else if (type === 'R') {
+            addShape(new THREE.CylinderGeometry(0.5, 0.6, 1.5, 16), 1.5);
+            addShape(new THREE.CylinderGeometry(0.6, 0.6, 0.4, 16), 2.4);
+            for(let i=0; i<4; i++) {
+                const bat = addShape(new THREE.BoxGeometry(0.3, 0.3, 0.3), 2.7);
+                bat.position.x = Math.cos(i * Math.PI/2) * 0.4;
+                bat.position.z = Math.sin(i * Math.PI/2) * 0.4;
+            }
+        } else if (type === 'Q') {
+            addShape(new THREE.CylinderGeometry(0.3, 0.6, 2.0, 16), 1.8);
+            addShape(new THREE.CylinderGeometry(0.7, 0.3, 0.4, 16), 3.0);
+            addShape(new THREE.SphereGeometry(0.2, 16, 16), 3.3);
+        }
+
+        group.position.y = 0.2; 
+        if (side === 'black') group.rotation.y = Math.PI;
+
+        if (side === 'white') {
+            try {
+                const ringGeo = new THREE.RingGeometry(1.2, 1.5, 16);
+                const activeRing = new THREE.Mesh(ringGeo, activeRingMat);
+                activeRing.rotation.x = -Math.PI / 2;
+                activeRing.position.y = 0.05; 
+                activeRing.name = "activeRing";
+                group.add(activeRing);
+            } catch(e) {}
+        }
+
+        return group;
+    }
+
+    function addPiece(type, side, x, z) {
+        const mesh = createPieceMesh(type, side);
+        mesh.position.set(x * TILE_SIZE, 0.2, z * TILE_SIZE);
+        scene.add(mesh);
+        
+        const piece = { type, side, x, z, mesh };
+        pieces.push(piece);
+
+        if (side === 'white') {
+            mesh.visible = true; 
+        } else {
+            if (rawMap[z] && rawMap[z][x]) {
+                const roomChar = rawMap[z][x];
+                if (!activeRooms.has(roomChar)) {
+                    mesh.visible = false;
+                }
+            }
+        }
+        return piece;
+    }
+
+    // --- TOMBSTONE MECHANICS ---
+    let tombstoneSpriteMat = null;
+    function getTombstoneMat() {
+        if(tombstoneSpriteMat) return tombstoneSpriteMat;
+        const canvas = document.createElement('canvas');
+        canvas.width = 128; canvas.height = 64;
+        const ctx = canvas.getContext('2d');
+        
+        ctx.fillStyle = 'rgba(0,0,0,0.8)';
+        ctx.beginPath();
+        ctx.moveTo(16, 0); ctx.lineTo(112, 0); ctx.quadraticCurveTo(128, 0, 128, 16);
+        ctx.lineTo(128, 48); ctx.quadraticCurveTo(128, 64, 112, 64);
+        ctx.lineTo(16, 64); ctx.quadraticCurveTo(0, 64, 0, 48);
+        ctx.lineTo(0, 16); ctx.quadraticCurveTo(0, 0, 16, 0);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.font = 'bold 36px sans-serif';
+        ctx.fillStyle = '#ffd700';
+        ctx.textAlign = 'center';
+        ctx.fillText('💰 50', 64, 44);
+        
+        const tex = new THREE.CanvasTexture(canvas);
+        tombstoneSpriteMat = new THREE.SpriteMaterial({ map: tex, transparent: true });
+        return tombstoneSpriteMat;
+    }
+
+    function createTombstone(x, z) {
+        const tsGroup = new THREE.Group();
+        tsGroup.userData = { isTombstone: true, x, z, group: tsGroup };
+
+        const slabGeo = new THREE.BoxGeometry(0.8, 1.2, 0.4);
+        const slabMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.9 });
+        const slab = new THREE.Mesh(slabGeo, slabMat);
+        slab.position.y = 0.6;
+        slab.castShadow = true;
+        tsGroup.add(slab);
+        
+        const sprite = new THREE.Sprite(getTombstoneMat());
+        sprite.scale.set(1.5, 0.75, 1);
+        sprite.position.set(0, 1.6, 0);
+        tsGroup.add(sprite);
+
+        tsGroup.position.set(x * TILE_SIZE, 0, z * TILE_SIZE);
+        scene.add(tsGroup);
+        
+        const intGeo = new THREE.BoxGeometry(TILE_SIZE, TILE_SIZE, TILE_SIZE);
+        const intMat = new THREE.MeshBasicMaterial({visible: false});
+        const intMesh = new THREE.Mesh(intGeo, intMat);
+        intMesh.position.y = TILE_SIZE/2;
+        tsGroup.add(intMesh);
+        
+        tombstones.push({x, z, group: tsGroup});
+    }
+
+    // --- INTERACTION & RAYCASTING ---
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    let pointerDownPos = { x: 0, y: 0 };
+
+    function onPointerDown(event) {
+        pointerDownPos.x = event.clientX;
+        pointerDownPos.y = event.clientY;
+    }
+
+    function onPointerUp(event) {
+        if (state !== 'PLAYER_TURN' && state !== 'GAME_OVER') return;
+
+        const dist = Math.hypot(event.clientX - pointerDownPos.x, event.clientY - pointerDownPos.y);
+        if (dist > 10) return; 
+
+        mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+        mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+        raycaster.setFromCamera(mouse, camera);
+
+        const interactables = scene.children.filter(obj => !obj.userData.isWall);
+        const intersects = raycaster.intersectObjects(interactables, true);
+        
+        if (intersects.length > 0) {
+            let object = intersects[0].object;
+            let checkObj = object;
+            let isTombstone = false;
+            let tsData = null;
+
+            while (checkObj && checkObj.type !== "Scene") {
+                if (checkObj.userData && checkObj.userData.isTombstone) {
+                    isTombstone = true;
+                    tsData = checkObj.userData;
+                    break;
+                }
+                checkObj = checkObj.parent;
+            }
+
+            if (isTombstone) {
+                if (coinsCount >= 50) {
+                    if (getPieceAt(tsData.x, tsData.z)) {
+                        showMessage("Tile is blocked!");
+                        return;
+                    }
+                    coinsCount -= 50;
+                    document.getElementById('coins-display').innerText = coinsCount;
+                    scene.remove(tsData.group);
+                    tombstones = tombstones.filter(t => t.group !== tsData.group);
+                    
+                    addPiece('P', 'white', tsData.x, tsData.z);
+                    showMessage("Pawn Resurrected!");
+
+                    if (state === 'GAME_OVER' || pieces.filter(p=>p.side==='white').length === 1) {
+                        document.getElementById('game-over-modal').style.display = 'none';
+                        startPlayerTurn(); // Recover from wipe
+                    }
+                } else {
+                    showMessage("Not enough coins (Need 50)!");
+                }
+                return;
+            }
+
+            if (state !== 'PLAYER_TURN') return;
+
+            const hitPoint = intersects[0].point;
+            const gridX = Math.round(hitPoint.x / TILE_SIZE);
+            const gridZ = Math.round(hitPoint.z / TILE_SIZE);
+
+            const moveMatch = validMoves.find(m => m.x === gridX && m.z === gridZ);
+            if (moveMatch) {
+                executeMove(selectedPiece, moveMatch.x, moveMatch.z, moveMatch.targetPiece);
+                return;
+            }
+
+            while (object.parent && object.parent.type !== "Scene") {
+                object = object.parent;
+            }
+
+            const clickedPiece = pieces.find(p => p.mesh === object || p.mesh.children.includes(intersects[0].object));
+            
+            if (clickedPiece && clickedPiece.side === 'white') {
+                selectPiece(clickedPiece);
+            } else {
+                clearHighlights();
+                selectedPiece = null;
+            }
+        }
+    }
+
+    // --- CHESS LOGIC ---
+    function selectPiece(piece) {
+        selectedPiece = piece;
+        clearHighlights();
+        
+        new TWEEN.Tween(piece.mesh.position)
+            .to({ y: 1.0 }, 100)
+            .yoyo(true).repeat(1)
+            .start();
+
+        validMoves = getValidMoves(piece);
+        
+        validMoves.forEach(move => {
+            const geo = new THREE.BoxGeometry(TILE_SIZE * 0.9, 0.1, TILE_SIZE * 0.9);
+            const color = move.targetPiece ? colors.enemyHighlight : colors.highlight;
+            const mat = new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0.5 });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.set(move.x * TILE_SIZE, 0.5, move.z * TILE_SIZE);
+            scene.add(mesh);
+            highlightMeshes.push({ mesh, x: move.x, z: move.z, targetPiece: move.targetPiece });
+            
+            new TWEEN.Tween(mesh.position)
+                .to({ y: 0.8 }, 500)
+                .yoyo(true).repeat(Infinity)
+                .start();
+        });
+    }
+
+    function clearHighlights() {
+        highlightMeshes.forEach(h => scene.remove(h.mesh));
+        highlightMeshes = [];
+        validMoves = [];
+    }
+
+    function updateAllTelegraphs() {
+        clearTelegraphs();
+        if (state !== 'PLAYER_TURN' && state !== 'ANIMATING' && state !== 'UPGRADE') return;
+
+        const enemies = pieces.filter(p => p.side === 'black');
+        const threatZones = new Set();
+
+        // Reveal tiles under threat from visible enemies
+        enemies.forEach(enemy => {
+            if (!activeRooms.has(rawMap[enemy.z][enemy.x])) return;
+            const moves = getValidMoves(enemy);
+            moves.forEach(m => {
+                threatZones.add(`${m.x},${m.z}`);
+            });
+        });
+
+        const geo = new THREE.BoxGeometry(TILE_SIZE * 0.9, 0.1, TILE_SIZE * 0.9);
+        threatZones.forEach(coord => {
+            const [x, z] = coord.split(',').map(Number);
+            const mesh = new THREE.Mesh(geo, telegraphMat);
+            mesh.position.set(x * TILE_SIZE, 0.3, z * TILE_SIZE);
+            scene.add(mesh);
+            telegraphMeshes.push(mesh);
+        });
+    }
+
+    function clearTelegraphs() {
+        telegraphMeshes.forEach(m => scene.remove(m));
+        telegraphMeshes = [];
+    }
+
+    function getPieceAt(x, z) {
+        return pieces.find(p => p.x === x && p.z === z);
+    }
+
+    function isWalkable(x, z, allowPits = false) {
+        if (z < 0 || z >= mapHeight || x < 0 || x >= mapWidth) return false;
+        if (!grid[z] || !grid[z][x]) return false;
+        const type = grid[z][x].type;
+        if (type === 'wall') return false;
+        if (type === 'pit' && !allowPits) return false;
+        return true;
+    }
+
+    function getValidMoves(piece) {
+        const moves = [];
+        const { type, x, z, side } = piece;
+
+        const raymarch = (dx, dz, maxSteps = 99) => {
+            for (let i = 1; i <= maxSteps; i++) {
+                const tx = x + dx * i;
+                const tz = z + dz * i;
+                
+                if (tz < 0 || tz >= mapHeight || tx < 0 || tx >= mapWidth) break;
+                const char = rawMap[tz][tx];
+                if (char === '#') break; 
+
+                const targetPiece = getPieceAt(tx, tz);
+                
+                if (char === '_') {
+                    if (targetPiece) break; 
+                    continue; 
+                }
+                
+                if (targetPiece) {
+                    if (targetPiece.side !== side) moves.push({ x: tx, z: tz, targetPiece });
+                    break; 
+                } else {
+                    moves.push({ x: tx, z: tz, targetPiece: null });
+                }
+            }
+        };
+
+        if (type === 'P') {
+            [ [0,-1], [0,1], [-1,0], [1,0] ].forEach(d => {
+                const tx = x + d[0]; const tz = z + d[1];
+                if (isWalkable(tx, tz, false) && !getPieceAt(tx, tz)) {
+                    moves.push({ x: tx, z: tz, targetPiece: null });
+                }
+            });
+            [ [-1,-1], [1,-1], [-1,1], [1,1] ].forEach(d => {
+                const tx = x + d[0]; const tz = z + d[1];
+                if (isWalkable(tx, tz, false)) {
+                    const tp = getPieceAt(tx, tz);
+                    if (tp && tp.side !== side) moves.push({ x: tx, z: tz, targetPiece: tp });
+                }
+            });
+        } 
+        else if (type === 'N') {
+            const jumps = [
+                [-1,-2], [1,-2], [-2,-1], [2,-1],
+                [-2,1], [2,1], [-1,2], [1,2]
+            ];
+            jumps.forEach(j => {
+                const tx = x + j[0]; const tz = z + j[1];
+                if (isWalkable(tx, tz, false)) { 
+                    const tp = getPieceAt(tx, tz);
+                    if (!tp) moves.push({ x: tx, z: tz, targetPiece: null });
+                    else if (tp.side !== side) moves.push({ x: tx, z: tz, targetPiece: tp });
+                }
+            });
+        }
+        else if (type === 'B') {
+            raymarch(1, 1); raymarch(1, -1); raymarch(-1, 1); raymarch(-1, -1);
+        }
+        else if (type === 'R') {
+            raymarch(1, 0); raymarch(-1, 0); raymarch(0, 1); raymarch(0, -1);
+        }
+        else if (type === 'Q') {
+            raymarch(1, 1); raymarch(1, -1); raymarch(-1, 1); raymarch(-1, -1);
+            raymarch(1, 0); raymarch(-1, 0); raymarch(0, 1); raymarch(0, -1);
+        }
+
+        return moves;
+    }
+
+    // --- GAMEPLAY FLOW ---
+    function panCameraTo(gridX, gridZ) {
+        const targetX = gridX * TILE_SIZE;
+        const targetZ = gridZ * TILE_SIZE;
+        
+        const dx = targetX - controls.target.x;
+        const dz = targetZ - controls.target.z;
+
+        new TWEEN.Tween(controls.target)
+            .to({ x: targetX, z: targetZ }, 500)
+            .easing(TWEEN.Easing.Cubic.Out)
+            .start();
+            
+        new TWEEN.Tween(camera.position)
+            .to({ x: camera.position.x + dx, z: camera.position.z + dz }, 500)
+            .easing(TWEEN.Easing.Cubic.Out)
+            .start();
+    }
+
+    function executeMove(piece, destX, destZ, targetPiece) {
+        state = 'ANIMATING';
+        clearHighlights();
+        clearTelegraphs();
+
+        const wX = destX * TILE_SIZE;
+        const wZ = destZ * TILE_SIZE;
+
+        if (piece.side === 'white') {
+            panCameraTo(destX, destZ);
+        }
+
+        const isKnight = piece.type === 'N';
+        const jumpHeight = isKnight ? 4 : 1.5;
+
+        new TWEEN.Tween(piece.mesh.position)
+            .to({ x: wX, z: wZ }, 400)
+            .easing(TWEEN.Easing.Quadratic.Out)
+            .start();
+
+        const activeRing = piece.mesh.getObjectByName("activeRing");
+        if (activeRing) activeRing.visible = false;
+
+        new TWEEN.Tween(piece.mesh.position)
+            .to({ y: jumpHeight }, 200)
+            .easing(TWEEN.Easing.Quadratic.Out)
+            .yoyo(true).repeat(1)
+            .onComplete(() => {
+                piece.mesh.position.y = 0.2;
+                piece.x = destX;
+                piece.z = destZ;
+
+                if (targetPiece) {
+                    capturePiece(piece, targetPiece);
+                } else {
+                    checkRoomReveal(destX, destZ, piece);
+                    postMoveLogic(piece);
+                }
+            })
+            .start();
+    }
+
+    function capturePiece(attacker, victim, isTrapKill = false) {
+        hitStopTimer = 150; 
+        createShatterParticles(victim.mesh.position, victim.side);
+
+        if (victim.side === 'white') {
+            if (victim.type !== 'P') {
+                // Try to Demote and Knockback
+                let adj = [];
+                for(let dx=-1; dx<=1; dx++){
+                    for(let dz=-1; dz<=1; dz++){
+                        if(dx===0 && dz===0) continue;
+                        const tx = victim.x+dx, tz = victim.z+dz;
+                        if(isWalkable(tx, tz, false) && !getPieceAt(tx, tz) && tx !== attacker?.x && tz !== attacker?.z) {
+                            if(activeRooms.has(rawMap[tz][tx])) adj.push({x: tx, z: tz});
+                        }
+                    }
+                }
+                
+                if (adj.length > 0) {
+                    const spot = adj[Math.floor(Math.random() * adj.length)];
+                    victim.type = 'P';
+                    scene.remove(victim.mesh);
+                    victim.mesh = createPieceMesh('P', 'white');
+                    scene.add(victim.mesh);
+                    
+                    victim.mesh.position.set(victim.x * TILE_SIZE, 0.2, victim.z * TILE_SIZE);
+                    victim.x = spot.x;
+                    victim.z = spot.z;
+                    
+                    new TWEEN.Tween(victim.mesh.position)
+                        .to({x: spot.x * TILE_SIZE, z: spot.z * TILE_SIZE}, 300)
+                        .easing(TWEEN.Easing.Quadratic.Out)
+                        .start();
+                        
+                    showMessage("Piece Demoted!");
+                    updateAllTelegraphs();
+                    if (attacker) checkRoomReveal(attacker.x, attacker.z, attacker);
+                    if (attacker) postMoveLogic(attacker);
+                    return; 
+                }
+            }
+            
+            // Death (No space to knockback OR was a Pawn)
+            createTombstone(victim.x, victim.z);
+            showMessage("Piece Died!");
+        } else {
+            // Enemy died Economy Logic
+            if (!isTrapKill) {
+                let coinsToDrop = TYPES[victim.type].val * 5;
+                if (attacker && attacker.type === 'Q') {
+                    coinsToDrop = 0; 
+                    showMessage("Queen Kill: 0 Coins!");
+                } else if (coinsToDrop > 0) {
+                    coinsToDrop = Math.floor(Math.random() * 21) + 10; 
+                }
+                if (coinsToDrop > 0) {
+                    explodeCoins(victim.x, victim.z, coinsToDrop);
+                }
+            }
+        }
+        
+        scene.remove(victim.mesh);
+        pieces = pieces.filter(p => p !== victim);
+
+        updateAllTelegraphs(); 
+
+        if (attacker) checkRoomReveal(attacker.x, attacker.z, attacker);
+
+        // Check Win/Loss conditions
+        const whitePieces = pieces.filter(p => p.side === 'white');
+        const blackPieces = pieces.filter(p => p.side === 'black');
+        
+        if (blackPieces.length === 0) {
+            state = 'GAME_OVER';
+            setTimeout(() => {
+                if (currentLevelIndex < levels.length - 1) {
+                    showEndGame("FLOOR CLEARED", "All enemies defeated!", true);
+                } else {
+                    showEndGame("DUNGEON CLEARED", "You have conquered the Chess Dungeon!", false);
+                }
+            }, 1000);
+            return;
+        } else if (whitePieces.length === 0) {
+            const unblockedTombstones = tombstones.filter(t => !getPieceAt(t.x, t.z));
+            if (tombstones.length > 0 && coinsCount >= 50 && unblockedTombstones.length > 0) {
+                showMessage("Squad down! Revive a piece to continue.");
+                state = 'PLAYER_TURN'; // Stay in turn mode to allow reviving
+                return;
+            } else {
+                state = 'GAME_OVER';
+                setTimeout(() => {
+                    showEndGame("GAME OVER", "Your squad was wiped out.", false);
+                }, 1000);
+                return;
+            }
+        }
+
+        if (!isTrapKill && attacker && attacker.side === 'white') {
+            const upgrades = getUpgradeOptions(attacker.type);
+            if (upgrades.length > 0) {
+                promptUpgrade(attacker, upgrades);
+                return; 
+            }
+        }
+
+        if (attacker) postMoveLogic(attacker);
+    }
+
+    function createShatterParticles(origin, side) {
+        const color = side === 'white' ? colors.white : colors.black;
+        const mat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.8 });
+        const geo = new THREE.BoxGeometry(0.3, 0.3, 0.3);
+
+        for (let i = 0; i < 15; i++) {
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.copy(origin);
+            mesh.position.y += Math.random();
+            scene.add(mesh);
+
+            const body = new CANNON.Body({
+                mass: 0.5,
+                material: new CANNON.Material({ restitution: 0.2 }),
+                shape: new CANNON.Box(new CANNON.Vec3(0.15, 0.15, 0.15))
+            });
+            body.position.copy(mesh.position);
+            
+            body.velocity.set(
+                (Math.random() - 0.5) * 20, 
+                10 + Math.random() * 15, 
+                (Math.random() - 0.5) * 20
+            );
+            body.angularVelocity.set(Math.random()*20, Math.random()*20, Math.random()*20);
+            world.addBody(body);
+
+            physicsObjects.push({ mesh, body, type: 'debris', createdAt: Date.now() });
+        }
+    }
+
+    function triggerTraps(callback) {
+        let hasTriggered = false;
+        
+        trapTiles.forEach(trap => {
+            if (!activeRooms.has(trap.char)) return;
+
+            hasTriggered = true;
+            new TWEEN.Tween(trap.spikesGroup.position)
+                .to({y: 0.2}, 150)
+                .easing(TWEEN.Easing.Quadratic.Out)
+                .yoyo(true).repeat(1)
+                .onComplete(() => {
+                    trap.spikesGroup.position.y = -0.5;
+                })
+                .start();
+
+            const victim = getPieceAt(trap.x, trap.z);
+            if (victim) {
+                setTimeout(() => {
+                    showMessage("Trap Hit!");
+                    capturePiece(null, victim, true);
+                }, 100);
+            }
+        });
+
+        if (hasTriggered) {
+            setTimeout(callback, 500);
+        } else {
+            callback();
+        }
+    }
+
+    function teleportStragglers(leader) {
+        const whites = pieces.filter(p => p.side === 'white' && p !== leader);
+        if (whites.length === 0) return;
+
+        const emptySpots = [];
+        for (let r = 1; r <= 5; r++) {
+            for(let dx=-r; dx<=r; dx++) {
+                for(let dz=-r; dz<=r; dz++) {
+                    if (Math.abs(dx) !== r && Math.abs(dz) !== r) continue; 
+                    let nx = leader.x + dx;
+                    let nz = leader.z + dz;
+                    if(isWalkable(nx, nz, false) && !getPieceAt(nx, nz)) {
+                        if(activeRooms.has(rawMap[nz][nx])) {
+                            emptySpots.push({x: nx, z: nz});
+                        }
+                    }
+                }
+            }
+            if (emptySpots.length >= whites.length) break;
+        }
+
+        whites.forEach((p, index) => {
+            if (index < emptySpots.length) {
+                const spot = emptySpots[index];
+                new TWEEN.Tween(p.mesh.scale)
+                    .to({x: 0.01, y: 0.01, z: 0.01}, 300)
+                    .easing(TWEEN.Easing.Back.In)
+                    .onComplete(() => {
+                        p.x = spot.x;
+                        p.z = spot.z;
+                        p.mesh.position.set(p.x * TILE_SIZE, 0.2, p.z * TILE_SIZE);
+                        new TWEEN.Tween(p.mesh.scale)
+                            .to({x: 1, y: 1, z: 1}, 500)
+                            .easing(TWEEN.Easing.Elastic.Out)
+                            .start();
+                    })
+                    .start();
+            }
+        });
+    }
+
+    function checkRoomReveal(centerX, centerZ, revealerPiece) {
+        let roomDiscovered = false;
+        
+        for (let dx = -1; dx <= 1; dx++) {
+            for (let dz = -1; dz <= 1; dz++) {
+                const x = centerX + dx;
+                const z = centerZ + dz;
+                
+                if (z < 0 || z >= mapHeight || x < 0 || x >= mapWidth) continue;
+
+                const char = rawMap[z][x];
+                if (char !== '#' && char !== ' ' && char !== '_' && !activeRooms.has(char)) {
+                    activeRooms.add(char);
+                    roomDiscovered = true;
+                    
+                    if (roomMeshes[char]) {
+                        roomMeshes[char].forEach(mesh => {
+                            mesh.visible = true;
+                            mesh.position.y = -10;
+                            new TWEEN.Tween(mesh.position)
+                                .to({ y: 0 }, 500)
+                                .easing(TWEEN.Easing.Back.Out)
+                                .start();
+                        });
+                    }
+                    pieces.forEach(p => {
+                        if (rawMap[p.z][p.x] === char) {
+                            p.mesh.visible = true;
+                            p.mesh.scale.set(0.1, 0.1, 0.1);
+                            new TWEEN.Tween(p.mesh.scale)
+                                .to({ x:1, y:1, z:1 }, 600)
+                                .easing(TWEEN.Easing.Elastic.Out)
+                                .start();
+                        }
+                    });
+                }
+            }
+        }
+        
+        if (roomDiscovered) {
+            showMessage("Room Discovered!");
+            updateAllTelegraphs();
+            if (revealerPiece && revealerPiece.side === 'white') {
+                teleportStragglers(revealerPiece);
+            }
+        }
+    }
+
+    // --- TURN STRUCTURE (1 MOVE PER TURN) ---
+    function startPlayerTurn() {
+        state = 'PLAYER_TURN';
+        showMessage("Your Turn");
+        
+        // Show active indicators under all white pieces
+        pieces.filter(p => p.side === 'white').forEach(p => {
+            const activeRing = p.mesh.getObjectByName("activeRing");
+            if (activeRing) activeRing.visible = true;
+        });
+
+        updateAllTelegraphs();
+    }
+
+    function endPlayerTurn() {
+        state = 'ENEMY_TURN';
+        clearHighlights();
+        clearTelegraphs();
+        selectedPiece = null;
+        turnCount++;
+        
+        // Hide active player indicators during enemy turn
+        pieces.filter(p => p.side === 'white').forEach(p => {
+            const activeRing = p.mesh.getObjectByName("activeRing");
+            if (activeRing) activeRing.visible = false;
+        });
+        
+        if (turnCount % 2 === 0) {
+            triggerTraps(() => {
+                setTimeout(processEnemyTurn, 500);
+            });
+        } else {
+            setTimeout(processEnemyTurn, 500);
+        }
+    }
+
+    function postMoveLogic(piece) {
+        if (state === 'GAME_OVER') return;
+        
+        if (piece.side === 'white') {
+            endPlayerTurn(); 
+        } else {
+            startPlayerTurn(); 
+        }
+    }
+
+    // --- ENEMY AI (1 MOVE PER TURN) ---
+    function processEnemyTurn() {
+        if (state === 'GAME_OVER') return;
+        
+        const activeEnemies = pieces.filter(p => p.side === 'black' && activeRooms.has(rawMap[p.z][p.x]));
+        if (activeEnemies.length === 0) {
+            startPlayerTurn();
+            return;
+        }
+
+        let attackingMove = null;
+        let selectedEnemy = null;
+        
+        // AI prioritizing taking out players
+        for (let enemy of activeEnemies) {
+            const moves = getValidMoves(enemy);
+            const captureMove = moves.find(m => m.targetPiece && m.targetPiece.side === 'white');
+            if (captureMove) {
+                attackingMove = captureMove;
+                selectedEnemy = enemy;
+                break;
+            }
+        }
+
+        if (attackingMove) {
+            executeMove(selectedEnemy, attackingMove.x, attackingMove.z, attackingMove.targetPiece);
+            return;
+        }
+
+        // If no capture, random move
+        activeEnemies.sort(() => Math.random() - 0.5); 
+        for (let enemy of activeEnemies) {
+            const moves = getValidMoves(enemy).filter(m => !m.targetPiece); 
+            if (moves.length > 0) {
+                const randomMove = moves[Math.floor(Math.random() * moves.length)];
+                executeMove(enemy, randomMove.x, randomMove.z, null);
+                return;
+            }
+        }
+
+        // If locked out completely, skip enemy turn
+        startPlayerTurn();
+    }
+
+    // --- UPGRADE SYSTEM ---
+    function getUpgradeOptions(type) {
+        if (type === 'P') return ['N', 'B'];
+        if (type === 'N' || type === 'B') return ['R'];
+        if (type === 'R') return ['Q'];
+        return [];
+    }
+
+    function promptUpgrade(piece, options) {
+        state = 'UPGRADE';
+        pendingUpgradePiece = piece;
+        
+        const container = document.getElementById('upgrade-btns-container');
+        container.innerHTML = '';
+        
+        options.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.className = 'btn gold';
+            btn.innerText = TYPES[opt].name;
+            btn.onclick = () => performUpgrade(opt);
+            container.appendChild(btn);
+        });
+
+        document.getElementById('upgrade-modal').style.display = 'block';
+    }
+
+    function performUpgrade(newType) {
+        document.getElementById('upgrade-modal').style.display = 'none';
+        
+        const piece = pendingUpgradePiece;
+        const oldMesh = piece.mesh;
+        
+        explodeCoins(piece.x, piece.z, 5); 
+
+        piece.type = newType;
+        
+        scene.remove(oldMesh);
+        const newMesh = createPieceMesh(newType, piece.side);
+        newMesh.position.set(piece.x * TILE_SIZE, 0.2, piece.z * TILE_SIZE);
+        scene.add(newMesh);
+        piece.mesh = newMesh;
+
+        newMesh.scale.set(0.1, 0.1, 0.1);
+        new TWEEN.Tween(newMesh.scale)
+            .to({ x:1, y:1, z:1 }, 1000)
+            .easing(TWEEN.Easing.Elastic.Out)
+            .onComplete(() => {
+                pendingUpgradePiece = null;
+                postMoveLogic(piece);
+            })
+            .start();
+    }
+
+    // --- SHOP & ECONOMY ---
+    function openShop() {
+        state = 'SHOP';
+        document.getElementById('game-over-modal').style.display = 'none';
+        
+        const hasPawns = pieces.filter(p => p.side === 'white' && p.type === 'P').length > 0 || persistentSquad.includes('P');
+        const knightBtn = document.getElementById('buy-knight-btn');
+        const bishopBtn = document.getElementById('buy-bishop-btn');
+        
+        [knightBtn, bishopBtn].forEach(btn => {
+            if (hasPawns) {
+                btn.style.opacity = 1;
+                btn.disabled = false;
+            } else {
+                btn.style.opacity = 0.5;
+                btn.disabled = true;
+            }
+        });
+        
+        document.getElementById('shop-modal').style.display = 'block';
+    }
+
+    function buyUpgrade(newType, cost) {
+        if (coinsCount >= cost) {
+            const pawnIndex = persistentSquad.indexOf('P');
+            if (pawnIndex !== -1) {
+                coinsCount -= cost;
+                document.getElementById('coins-display').innerText = coinsCount;
+                
+                persistentSquad[pawnIndex] = newType; 
+                
+                showMessage(`-${cost} Coins: Promoted to ${TYPES[newType].name}!`);
+                openShop(); 
+            }
+        } else {
+            showMessage("Not enough coins!");
+        }
+    }
+
+    // --- PHYSICS & FX ---
+    const coinGeo = new THREE.CylinderGeometry(0.3, 0.3, 0.1, 16);
+    coinGeo.rotateX(Math.PI / 2); 
+    const coinMat = new THREE.MeshStandardMaterial({ 
+        color: 0xffd700, 
+        metalness: 0.8, 
+        roughness: 0.2,
+        emissive: 0x443300
+    });
+    const coinPhysMat = new CANNON.Material({ restitution: 0.8, friction: 0.3 });
+
+    function explodeCoins(gridX, gridZ, amount) {
+        const wX = gridX * TILE_SIZE;
+        const wZ = gridZ * TILE_SIZE;
+
+        for (let i = 0; i < amount; i++) {
+            const mesh = new THREE.Mesh(coinGeo, coinMat);
+            mesh.castShadow = true;
+            scene.add(mesh);
+
+            const shape = new CANNON.Sphere(0.25);
+            const body = new CANNON.Body({ mass: 1, material: coinPhysMat });
+            body.addShape(shape);
+            
+            body.position.set(
+                wX + (Math.random() - 0.5), 
+                2 + Math.random() * 2, 
+                wZ + (Math.random() - 0.5)
+            );
+            
+            body.velocity.set(
+                (Math.random() - 0.5) * 20, 
+                15 + Math.random() * 15, 
+                (Math.random() - 0.5) * 20
+            );
+            body.angularVelocity.set(Math.random()*20, Math.random()*20, Math.random()*20);
+
+            world.addBody(body);
+            physicsObjects.push({ mesh, body, type: 'coin', createdAt: Date.now() });
+        }
+    }
+
+    function updatePhysicsObjects() {
+        const now = Date.now();
+        const uiCoinsElement = document.getElementById('coins-display');
+        const containerElement = document.getElementById('coins-container');
+
+        for (let i = physicsObjects.length - 1; i >= 0; i--) {
+            const obj = physicsObjects[i];
+            
+            if (!obj.collected) {
+                obj.mesh.position.copy(obj.body.position);
+                obj.mesh.quaternion.copy(obj.body.quaternion);
+
+                if (obj.type === 'debris') {
+                    if (now - obj.createdAt > 3000) {
+                        obj.mesh.scale.multiplyScalar(0.9);
+                        if (obj.mesh.scale.x < 0.1) {
+                            scene.remove(obj.mesh);
+                            world.removeBody(obj.body);
+                            physicsObjects.splice(i, 1);
+                        }
+                    }
+                }
+                
+                if (obj.type === 'coin') {
+                    if (now - obj.createdAt > 1500) {
+                        obj.collected = true;
+                        world.removeBody(obj.body);
+                        
+                        new TWEEN.Tween(obj.mesh.position)
+                            .to({ 
+                                x: camera.position.x - 15, 
+                                y: camera.position.y + 10, 
+                                z: camera.position.z - 15 
+                            }, 300)
+                            .easing(TWEEN.Easing.Quadratic.In)
+                            .start();
+                        
+                        new TWEEN.Tween(obj.mesh.scale)
+                            .to({ x:0.1, y:0.1, z:0.1 }, 300)
+                            .easing(TWEEN.Easing.Quadratic.In)
+                            .onComplete(() => {
+                                scene.remove(obj.mesh);
+                                physicsObjects.splice(i, 1);
+                                
+                                coinsCount++;
+                                uiCoinsElement.innerText = coinsCount;
+                                
+                                containerElement.style.transform = 'scale(1.2)';
+                                setTimeout(() => { containerElement.style.transform = 'scale(1)'; }, 50);
+                            })
+                            .start();
+                    }
+                }
+            }
+        }
+    }
+
+    // --- UI HELPERS ---
+    function showMessage(text) {
+        const msg = document.getElementById('messages');
+        if (msg) {
+            msg.innerText = text;
+            msg.style.opacity = 1;
+            setTimeout(() => { msg.style.opacity = 0; }, 2000);
+        }
+    }
+
+    function showEndGame(title, desc, hasNextLevel = false) {
+        state = 'GAME_OVER';
+        document.getElementById('end-title').innerText = title;
+        document.getElementById('end-desc').innerText = desc;
+        
+        const nextBtn = document.getElementById('next-level-btn');
+        const restartBtn = document.getElementById('restart-btn');
+        
+        if (hasNextLevel) {
+            nextBtn.style.display = 'inline-block';
+            restartBtn.style.display = 'none';
+        } else {
+            nextBtn.style.display = 'none';
+            restartBtn.style.display = 'inline-block';
+        }
+        
+        document.getElementById('game-over-modal').style.display = 'block';
+    }
+
+    function nextLevel() {
+        document.getElementById('shop-modal').style.display = 'none';
+        loadLevel(currentLevelIndex + 1);
+    }
+
+    function onWindowResize() {
+        const width = window.innerWidth || 800;
+        const height = window.innerHeight || 600;
+        const aspect = width / height;
+        const d = 18;
+        camera.left = -d * aspect;
+        camera.right = d * aspect;
+        camera.top = d;
+        camera.bottom = -d;
+        camera.updateProjectionMatrix();
+        renderer.setSize(width, height);
+    }
+
+    // --- MAIN LOOP ---
+    const timeStep = 1 / 60;
+    
+    function animate(time) {
+        requestAnimationFrame(animate);
+
+        if (hitStopTimer > 0) {
+            hitStopTimer -= (1000 / 60);
+            renderer.render(scene, camera);
+            return; 
+        }
+
+        world.step(timeStep);
+        TWEEN.update(time);
+
+        pieces.forEach(p => {
+            if (state !== 'ANIMATING' && p.mesh.position.y < 0.3) {
+                p.mesh.position.y = 0.2 + Math.sin(time * 0.003 + p.x + p.z) * 0.05;
+            }
+            
+            const activeRing = p.mesh.getObjectByName("activeRing");
+            if (activeRing && activeRing.visible) {
+                activeRing.rotation.z += 0.02; 
+            }
+        });
+
+        updatePhysicsObjects();
+
+        controls.update();
+        renderer.render(scene, camera);
+    }
+
+    // Execute immediately to prevent blank environments
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        init();
+    } else {
+        document.addEventListener('DOMContentLoaded', init);
+    }
+
+</script>
+</body>
+</html>
